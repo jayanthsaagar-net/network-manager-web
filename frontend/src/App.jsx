@@ -10,7 +10,13 @@ const api_frontend = {
     saveData: (data) => axios.post(API_URL_FRONTEND, data),
     importFile: (formData) => axios.post(`${API_URL_FRONTEND}/import`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     exportFile: () => axios.get(`${API_URL_FRONTEND}/export`, { responseType: 'blob' }),
-    search: (term, field) => axios.get(`${API_URL_FRONTEND}/search?term=${term}&field=${field}`),
+    search: (term, field, regionName = null) => {
+        let url = `${API_URL_FRONTEND}/search?term=${term}&field=${field}`;
+        if (regionName) {
+            url += `&regionName=${encodeURIComponent(regionName)}`;
+        }
+        return axios.get(url);
+    },
 };
 
 const getItem = (data, path) => {
@@ -56,15 +62,15 @@ const SubDeviceModal = ({ device, onSave, onCancel }) => {
     const handleSave = () => { if (name && ip) onSave({ name, ip }); };
     return (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-[60]">
-            <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow-xl w-full max-w-sm">
-                <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">{device ? 'Edit' : 'Add'} Sub-Device</h3>
+            <div className="bg-white p-5 rounded-lg shadow-xl w-full max-w-sm">
+                <h3 className="text-lg font-bold mb-4 text-gray-900">{device ? 'Edit' : 'Add'} Sub-Device</h3>
                 <div className="space-y-3">
-                    <input value={name} onChange={e => setName(e.target.value)} placeholder="Device Name" className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded" />
-                    <input value={ip} onChange={e => setIp(e.target.value)} placeholder="Specific IP" className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded" />
+                    <input value={name} onChange={e => setName(e.target.value)} placeholder="Device Name" className="w-full p-2 border border-gray-300 bg-white rounded" />
+                    <input value={ip} onChange={e => setIp(e.target.value)} placeholder="Specific IP" className="w-full p-2 border border-gray-300 bg-white rounded" />
                 </div>
                 <div className="mt-5 flex justify-end space-x-3">
-                    <button onClick={onCancel} className="bg-gray-200 dark:bg-gray-600 text-black dark:text-white px-4 py-2 rounded">Cancel</button>
-                    <button onClick={handleSave} className="bg-indigo-600 text-white px-4 py-2 rounded">Save</button>
+                    <button onClick={onCancel} className="bg-gray-200 text-black px-4 py-2 rounded">Cancel</button>
+                    <button onClick={handleSave} className="bg-black text-white px-4 py-2 rounded">Save</button>
                 </div>
             </div>
         </div>
@@ -135,14 +141,14 @@ const ItemModal = ({ isOpen, onClose, onUpdate, initialData, itemPath, mode }) =
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-            <div ref={modalRef} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-4"><h2 className="text-2xl font-bold">{mode.charAt(0).toUpperCase() + mode.slice(1)} Entry</h2><button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"><X size={24} /></button></div>
+            <div ref={modalRef} className="bg-white text-gray-900 rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-4"><h2 className="text-2xl font-bold">{mode.charAt(0).toUpperCase() + mode.slice(1)} Entry</h2><button onClick={onClose} className="text-gray-500 hover:text-gray-800"><X size={24} /></button></div>
                 <div className="space-y-4">
-                    {isRegion && <input name="name" value={itemData.name || ''} onChange={handleChange} placeholder="Region Name" className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded" />}
-                    {isLocation && <><input name="name" value={itemData.name || ''} onChange={handleChange} placeholder="Location Name" className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded" /><input name="network_id" value={itemData.network_id || ''} onChange={handleChange} placeholder="Network ID" className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded" /></>}
-                    {isDevice && <><input name="type" value={itemData.type || ''} onChange={handleChange} placeholder="Type / Interface" className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded" /><div className="p-3 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-900/50"><label className="font-semibold text-gray-700 dark:text-gray-300">IP Address Type</label><div className="flex space-x-4 mt-2 mb-3">{['single', 'range', 'multiple'].map(type => (<button key={type} onClick={() => handleIpTypeChange(type)} className={`px-3 py-1 text-sm rounded-md ${ipType === type ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>{type.charAt(0).toUpperCase() + type.slice(1)}</button>))}</div>{ipType === 'single' && <input name="ip" value={itemData.ip || ''} onChange={handleChange} placeholder="IP Address" className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded" />}{ipType === 'range' && <input name="ip" value={itemData.ip || ''} onChange={handleChange} placeholder="e.g., 192.168.1.10 to 192.168.1.20" className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded" />}{ipType === 'multiple' && <input name="ip" value={itemData.ip || ''} onChange={handleChange} placeholder="e.g., 10.0.0.1, 10.0.0.2" className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded" />}</div>{ipType === 'range' && (<div className="p-3 border border-gray-200 dark:border-gray-700 rounded-md"><div className="flex justify-between items-center mb-2"><h4 className="font-semibold text-gray-700 dark:text-gray-300">Sub-Devices in Range</h4><button onClick={() => { setEditingSubDeviceIndex(null); setSubDeviceModalOpen(true); }} className="bg-indigo-600 text-white text-sm py-1 px-2 rounded">Add Sub-Device</button></div><ul className="space-y-1 max-h-40 overflow-y-auto">{(itemData.sub_devices || []).map((sd, idx) => (<li key={idx} className="flex justify-between items-center p-2 bg-gray-100 dark:bg-gray-700/50 rounded"><span>{sd.name} ({sd.ip})</span><div className="space-x-2"><button onClick={() => { setEditingSubDeviceIndex(idx); setSubDeviceModalOpen(true); }} className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"><Edit size={16}/></button><button onClick={() => handleSubDeviceRemove(idx)} className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"><Trash2 size={16}/></button></div></li>))}</ul></div>)}<input name="description" value={itemData.description || ''} onChange={handleChange} placeholder="Description" className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded" /><input name="status" value={itemData.status || ''} onChange={handleChange} placeholder="Status" className="w-full p-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded" /></>}
+                    {isRegion && <input name="name" value={itemData.name || ''} onChange={handleChange} placeholder="Region Name" className="w-full p-2 border border-gray-300 bg-white rounded" />}
+                    {isLocation && <><input name="name" value={itemData.name || ''} onChange={handleChange} placeholder="Location Name" className="w-full p-2 border border-gray-300 bg-white rounded" /><input name="network_id" value={itemData.network_id || ''} onChange={handleChange} placeholder="Network ID" className="w-full p-2 border border-gray-300 bg-white rounded" /></>}
+                    {isDevice && <><input name="type" value={itemData.type || ''} onChange={handleChange} placeholder="Type / Interface" className="w-full p-2 border border-gray-300 bg-white rounded" /><div className="p-3 border border-gray-200 rounded-md bg-gray-50"><label className="font-semibold text-gray-700">IP Address Type</label><div className="flex space-x-4 mt-2 mb-3">{['single', 'range', 'multiple'].map(type => (<button key={type} onClick={() => handleIpTypeChange(type)} className={`px-3 py-1 text-sm rounded-md ${ipType === type ? 'bg-black text-white' : 'bg-gray-200'}`}>{type.charAt(0).toUpperCase() + type.slice(1)}</button>))}</div>{ipType === 'single' && <input name="ip" value={itemData.ip || ''} onChange={handleChange} placeholder="IP Address" className="w-full p-2 border border-gray-300 bg-white rounded" />}{ipType === 'range' && <input name="ip" value={itemData.ip || ''} onChange={handleChange} placeholder="e.g., 192.168.1.10 to 192.168.1.20" className="w-full p-2 border border-gray-300 bg-white rounded" />}{ipType === 'multiple' && <input name="ip" value={itemData.ip || ''} onChange={handleChange} placeholder="e.g., 10.0.0.1, 10.0.0.2" className="w-full p-2 border border-gray-300 bg-white rounded" />}</div>{ipType === 'range' && (<div className="p-3 border border-gray-200 rounded-md"><div className="flex justify-between items-center mb-2"><h4 className="font-semibold text-gray-700">Sub-Devices in Range</h4><button onClick={() => { setEditingSubDeviceIndex(null); setSubDeviceModalOpen(true); }} className="bg-black text-white text-sm py-1 px-2 rounded">Add Sub-Device</button></div><ul className="space-y-1 max-h-40 overflow-y-auto">{(itemData.sub_devices || []).map((sd, idx) => (<li key={idx} className="flex justify-between items-center p-2 bg-gray-100 rounded"><span>{sd.name} ({sd.ip})</span><div className="space-x-2"><button onClick={() => { setEditingSubDeviceIndex(idx); setSubDeviceModalOpen(true); }} className="text-gray-500 hover:text-black"><Edit size={16}/></button><button onClick={() => handleSubDeviceRemove(idx)} className="text-gray-500 hover:text-black"><Trash2 size={16}/></button></div></li>))}</ul></div>)}<input name="description" value={itemData.description || ''} onChange={handleChange} placeholder="Description" className="w-full p-2 border border-gray-300 bg-white rounded" /><input name="status" value={itemData.status || ''} onChange={handleChange} placeholder="Status" className="w-full p-2 border border-gray-300 bg-white rounded" /></>}
                 </div>
-                <div className="mt-6 flex justify-end space-x-4"><button onClick={onClose} className="bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white px-4 py-2 rounded">Cancel</button><button onClick={handleSave} className="bg-indigo-600 text-white px-4 py-2 rounded">Confirm</button></div>
+                <div className="mt-6 flex justify-end space-x-4"><button onClick={onClose} className="bg-gray-200 text-gray-800 px-4 py-2 rounded">Cancel</button><button onClick={handleSave} className="bg-black text-white px-4 py-2 rounded">Confirm</button></div>
             </div>
             {isSubDeviceModalOpen && <SubDeviceModal device={editingSubDeviceIndex !== null ? itemData.sub_devices[editingSubDeviceIndex] : null} onSave={handleSubDeviceSave} onCancel={() => setSubDeviceModalOpen(false)} />}
         </div>
@@ -165,37 +171,37 @@ const DataTable = ({ region, onSelect, selectedPath }) => {
     return (
         <div className="overflow-x-auto h-full">
             <table className="min-w-full">
-                <thead className="bg-gray-50 dark:bg-white/5 sticky top-0 backdrop-blur-sm">
+                <thead className="bg-gray-50 sticky top-0 backdrop-blur-sm">
                     <tr>
-                        <th className="w-2/5 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name / Type</th>
-                        <th className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">IP / Network ID</th>
-                        <th className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Description</th>
-                        <th className="w-1/10 px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                        <th className="w-2/5 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name / Type</th>
+                        <th className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP / Network ID</th>
+                        <th className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                        <th className="w-1/10 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-white/10">
+                <tbody className="divide-y divide-gray-200">
                     {region.locations && region.locations.map((loc, locIdx) => {
                         if (!loc) return null;
                         return (
                             <React.Fragment key={`loc-${locIdx}`}>
-                                <tr onClick={() => onSelect({ regionIdx: region.index, locationIdx: locIdx })} className={`cursor-pointer transition-colors duration-150 ${isSelected({ regionIdx: region.index, locationIdx: locIdx }) ? 'bg-indigo-500/20' : 'odd:bg-black/5 dark:odd:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10'}`}>
-                                    <td className="pl-4 pr-6 py-2 font-semibold text-gray-900 dark:text-gray-200 flex items-center justify-between">
+                                <tr onClick={() => onSelect({ regionIdx: region.index, locationIdx: locIdx })} className={`cursor-pointer transition-colors duration-150 ${isSelected({ regionIdx: region.index, locationIdx: locIdx }) ? 'bg-black/20' : 'odd:bg-black/5 hover:bg-black/10'}`}>
+                                    <td className="pl-4 pr-6 py-2 font-semibold text-gray-900 flex items-center justify-between">
                                         <span>{loc.name || '(No Name)'}</span>
-                                        <button onClick={(e) => { e.stopPropagation(); setExpanded(p => ({ ...p, [`l-${locIdx}`]: !p[`l-${locIdx}`] })); }} className="p-1 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
+                                        <button onClick={(e) => { e.stopPropagation(); setExpanded(p => ({ ...p, [`l-${locIdx}`]: !p[`l-${locIdx}`] })); }} className="p-1 rounded-full hover:bg-black/10">
                                             <ChevronRight className={`transform transition-transform duration-200 ${expanded[`l-${locIdx}`] ? 'rotate-90' : ''}`} size={16} />
                                         </button>
                                     </td>
-                                    <td className="px-6 py-2 text-gray-500 dark:text-gray-400">{loc.network_id || ''}</td>
+                                    <td className="px-6 py-2 text-gray-500">{loc.network_id || ''}</td>
                                     <td colSpan="2"></td>
                                 </tr>
                                 {expanded[`l-${locIdx}`] && loc.devices?.map((dev, devIdx) => {
                                     if (!dev) return null;
                                     return (
-                                        <tr key={`dev-${devIdx}`} onClick={() => onSelect({ regionIdx: region.index, locationIdx: locIdx, deviceIdx: devIdx })} className={`cursor-pointer text-sm transition-colors duration-150 ${isSelected({ regionIdx: region.index, locationIdx: locIdx, deviceIdx: devIdx }) ? 'bg-indigo-500/20' : 'odd:bg-black/5 dark:odd:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10'}`}>
-                                            <td className="pl-12 pr-6 py-2 text-gray-700 dark:text-gray-300">{dev.type || '(No Type)'}</td>
-                                            <td className="px-6 py-2 text-gray-500 dark:text-gray-400">{dev.ip || ''}</td>
-                                            <td className="px-6 py-2 text-gray-500 dark:text-gray-400">{dev.description || ''}</td>
-                                            <td className="px-6 py-2 text-gray-500 dark:text-gray-400">{dev.status || ''}</td>
+                                        <tr key={`dev-${devIdx}`} onClick={() => onSelect({ regionIdx: region.index, locationIdx: locIdx, deviceIdx: devIdx })} className={`cursor-pointer text-sm transition-colors duration-150 ${isSelected({ regionIdx: region.index, locationIdx: locIdx, deviceIdx: devIdx }) ? 'bg-black/20' : 'odd:bg-black/5 hover:bg-black/10'}`}>
+                                            <td className="pl-12 pr-6 py-2 text-gray-700">{dev.type || '(No Type)'}</td>
+                                            <td className="px-6 py-2 text-gray-500">{dev.ip || ''}</td>
+                                            <td className="px-6 py-2 text-gray-500">{dev.description || ''}</td>
+                                            <td className="px-6 py-2 text-gray-500">{dev.status || ''}</td>
                                         </tr>
                                     );
                                 })}
@@ -208,42 +214,42 @@ const DataTable = ({ region, onSelect, selectedPath }) => {
     );
 };
 
-const SearchResultsModal = ({ isOpen, onClose, results, isLoading }) => {
+const SearchResultsModal = ({ isOpen, onClose, results, isLoading, onResultClick }) => {
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="bg-white text-gray-900 rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-[90vh] flex flex-col">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-2xl font-bold">Search Results</h2>
-                    <button onClick={onClose} className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"><X size={24} /></button>
+                    <button onClick={onClose} className="text-gray-500 hover:text-gray-800"><X size={24} /></button>
                 </div>
                 <div className="overflow-y-auto">
-                    {isLoading ? <p className="text-gray-500 dark:text-gray-400">Searching...</p> :
+                    {isLoading ? <p className="text-gray-500">Searching...</p> :
                         results.length > 0 ? (
-                            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead className="bg-gray-50 dark:bg-gray-700/50">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="px-4 py-2 text-left text-gray-600 dark:text-gray-300">Region</th>
-                                        <th className="px-4 py-2 text-left text-gray-600 dark:text-gray-300">Location</th>
-                                        <th className="px-4 py-2 text-left text-gray-600 dark:text-gray-300">Device Type</th>
-                                        <th className="px-4 py-2 text-left text-gray-600 dark:text-gray-300">IP Address</th>
-                                        <th className="px-4 py-2 text-left text-gray-600 dark:text-gray-300">Description</th>
+                                        <th className="px-4 py-2 text-left text-gray-600">Region</th>
+                                        <th className="px-4 py-2 text-left text-gray-600">Location</th>
+                                        <th className="px-4 py-2 text-left text-gray-600">Device Type</th>
+                                        <th className="px-4 py-2 text-left text-gray-600">IP Address</th>
+                                        <th className="px-4 py-2 text-left text-gray-600">Description</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                                <tbody className="bg-white divide-y divide-gray-200 text-sm">
                                     {results.map((r, i) => (
-                                        <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                            <td className="px-4 py-2 text-gray-800 dark:text-gray-300">{r.regionName}</td>
-                                            <td className="px-4 py-2 text-gray-800 dark:text-gray-300">{r.locationName}</td>
-                                            <td className="px-4 py-2 text-gray-800 dark:text-gray-300">{r.device.type}</td>
-                                            <td className="px-4 py-2 font-mono text-indigo-600 dark:text-cyan-400">{r.device.ip}</td>
-                                            <td className="px-4 py-2 text-gray-500 dark:text-gray-400">{r.device.description}</td>
+                                        <tr key={i} className="hover:bg-gray-50 cursor-pointer" onClick={() => onResultClick(r)}>
+                                            <td className="px-4 py-2 text-gray-800">{r.regionName}</td>
+                                            <td className="px-4 py-2 text-gray-800">{r.locationName}</td>
+                                            <td className="px-4 py-2 text-gray-800">{r.device.type}</td>
+                                            <td className="px-4 py-2 font-mono text-black">{r.device.ip}</td>
+                                            <td className="px-4 py-2 text-gray-500">{r.device.description}</td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
-                        ) : <p className="text-gray-500 dark:text-gray-400">No results found for this search term.</p>
+                        ) : <p className="text-gray-500">No results found for this search term.</p>
                     }
                 </div>
             </div>
@@ -267,20 +273,6 @@ function App() {
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [searchField, setSearchField] = useState('ip');
-    const [theme, setTheme] = useState('dark');
-
-    useEffect(() => {
-        const storedTheme = localStorage.getItem('theme');
-        const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        setTheme(storedTheme || systemTheme);
-    }, []);
-
-    useEffect(() => {
-        const root = window.document.documentElement;
-        root.classList.remove(theme === 'dark' ? 'light' : 'dark');
-        root.classList.add(theme);
-        localStorage.setItem('theme', theme);
-    }, [theme]);
 
     const showToast = (message, type = 'success', onUndo = null) => {
         if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
@@ -417,7 +409,8 @@ function App() {
         setIsSearching(true);
         setSearchModalOpen(true);
         try {
-            const response = await api_frontend.search(term, field);
+            const regionName = field === 'global' ? null : data[selectedRegionIndex]?.name;
+            const response = await api_frontend.search(term, field, regionName);
             setSearchResults(response.data);
         } catch (error) {
             showToast("Search failed.", "error");
@@ -425,6 +418,22 @@ function App() {
         } finally {
             setIsSearching(false);
         }
+    };
+
+    const handleResultClick = (result) => {
+        const { regionName, locationName, device } = result;
+        const regionIdx = data.findIndex(r => r.name === regionName);
+        if (regionIdx === -1) return;
+        const locationIdx = data[regionIdx].locations.findIndex(l => l.name === locationName);
+        if (locationIdx === -1) return;
+        const deviceIdx = data[regionIdx].locations[locationIdx].devices.findIndex(
+            d => d.ip === device.ip && d.type === device.type && d.description === device.description
+        );
+        if (deviceIdx === -1) return;
+
+        setSelectedRegionIndex(regionIdx);
+        setSelectedPath({ regionIdx, locationIdx, deviceIdx });
+        setSearchModalOpen(false);
     };
 
 
@@ -446,72 +455,62 @@ function App() {
     const selectedRegion = (selectedRegionIndex !== null && data[selectedRegionIndex]) ? { ...data[selectedRegionIndex], index: selectedRegionIndex } : null;
 
     return (
-        <div className={`h-screen w-screen flex font-sans transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900 text-gray-200' : 'bg-gray-100 text-gray-800'}`}>
+        <div className="h-screen w-screen flex flex-col font-sans bg-gray-100 text-gray-800">
             <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: '', type: '' })} onUndo={toast.onUndo} />
             {isModalOpen && <ItemModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onUpdate={handleModalUpdate} initialData={data} itemPath={modalConfig.path} mode={modalConfig.mode} />}
-            <SearchResultsModal isOpen={isSearchModalOpen} onClose={() => setSearchModalOpen(false)} results={searchResults} isLoading={isSearching} />
+            <SearchResultsModal isOpen={isSearchModalOpen} onClose={() => setSearchModalOpen(false)} results={searchResults} isLoading={isSearching} onResultClick={handleResultClick} />
             
-            <aside className="w-80 bg-white/5 backdrop-blur-sm border-r border-white/10 p-4 flex flex-col shrink-0">
-                <div className="flex items-center justify-between gap-3 mb-6">
+            <header className="bg-white border-b border-gray-200 p-4 shrink-0">
+                <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <Server className="text-indigo-400" size={32}/>
-                        <h1 className="text-2xl font-bold text-white">Net Manager</h1>
+                        <Server className="text-black" size={28}/>
+                        <h1 className="text-xl font-bold text-black">Network Manager</h1>
                     </div>
-                    <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
-                        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-                    </button>
-                </div>
-                <div className="space-y-4 flex-grow">
-                    <div className="p-4 bg-black/20 border border-white/10 rounded-lg">
-                        <h2 className="font-semibold text-gray-300 mb-2">Controls</h2>
-                        <select value={selectedRegionIndex ?? ''} onChange={e => { setSelectedRegionIndex(Number(e.target.value)); setSelectedPath(null); }} className="w-full p-2 border border-gray-600 bg-gray-700 text-white rounded mb-3 shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    <div className="flex items-center gap-4">
+                        <select value={selectedRegionIndex ?? ''} onChange={e => { setSelectedRegionIndex(Number(e.target.value)); setSelectedPath(null); }} className="p-2 border border-gray-300 bg-white text-black rounded shadow-sm focus:ring-black focus:border-black">
                             <option value="" disabled>Select a Region...</option>
                             {data.map((r, i) => <option key={i} value={i}>{r.name}</option>)}
                         </select>
-                        <button onClick={handleAddRegion} className="w-full text-left bg-indigo-600 text-white p-2 rounded hover:bg-indigo-700 mb-2 transition-colors duration-200">Add New Region</button>
-                        <button onClick={() => handleRemove({ regionIdx: selectedRegionIndex })} disabled={selectedRegionIndex === null} className="w-full text-left bg-red-600 text-white p-2 rounded hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed transition-colors duration-200">Delete Selected Region</button>
-                        <hr className="my-3 border-gray-700"/>
-                        <button onClick={handleAddLocation} disabled={selectedRegionIndex === null} className="w-full text-left bg-cyan-600 text-white p-2 rounded hover:bg-cyan-700 mb-2 disabled:bg-cyan-400 disabled:cursor-not-allowed transition-colors duration-200">Add New Location</button>
-                        <button onClick={handleAddDevice} disabled={!selectedPath || selectedPath.deviceIdx !== undefined} className="w-full text-left bg-green-600 text-white p-2 rounded hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed transition-colors duration-200">Add New Device/Entry</button>
-                        <hr className="my-3 border-gray-700"/>
-                        <button onClick={handleEditSelected} disabled={!selectedPath} className="w-full text-left bg-amber-500 text-white p-2 rounded hover:bg-amber-600 mb-2 disabled:bg-amber-400 disabled:cursor-not-allowed transition-colors duration-200">Edit Selected Entry</button>
-                        <button onClick={() => handleRemove(selectedPath)} disabled={!selectedPath} className="w-full text-left bg-red-600 text-white p-2 rounded hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed transition-colors duration-200">Remove Selected Entry</button>
-                    </div>
-                    <div className="p-4 bg-black/20 border border-white/10 rounded-lg">
-                        <h2 className="font-semibold text-gray-300 mb-2">Data Management</h2>
-                        <div className="space-y-3">
-                            <div>
-                                <label className="text-sm font-medium text-gray-400">Global Search</label>
-                                <div className="flex">
-                                    <input type="text" value={globalSearchQuery} onChange={e => setGlobalSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch(globalSearchQuery, 'global')} placeholder="Search all fields..." className="w-full p-2 border border-gray-600 bg-gray-700 rounded-l-md focus:ring-indigo-500 focus:border-indigo-500" />
-                                    <button onClick={() => handleSearch(globalSearchQuery, 'global')} className="bg-gray-700 text-white p-2 rounded-r-md hover:bg-gray-600"><Search size={20}/></button>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium text-gray-400">Specific Search</label>
-                                <div className="flex">
-                                    <select value={searchField} onChange={e => setSearchField(e.target.value)} className="p-2 border border-r-0 border-gray-600 rounded-l-md bg-gray-800 focus:ring-indigo-500 focus:border-indigo-500">
-                                        <option value="ip">IP</option>
-                                        <option value="location">Location</option>
-                                        <option value="region">Region</option>
-                                        <option value="type">Name/Type</option>
-                                    </select>
-                                    <input type="text" value={specificSearchQuery} onChange={e => setSpecificSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch(specificSearchQuery, searchField)} placeholder="Search by category..." className="w-full p-2 border border-gray-600 bg-gray-700 focus:ring-indigo-500 focus:border-indigo-500" />
-                                    <button onClick={() => handleSearch(specificSearchQuery, searchField)} className="bg-gray-700 text-white p-2 rounded-r-md hover:bg-gray-600"><Search size={20}/></button>
-                                </div>
-                            </div>
-                        </div>
-                        <hr className="my-4 border-gray-700"/>
-                        <button onClick={() => document.getElementById('fileInput').click()} className="w-full flex items-center gap-2 text-left bg-indigo-600 text-white p-2 rounded hover:bg-indigo-700 mb-2 transition-colors duration-200"><Upload size={16}/> Import from Excel</button>
+                         <button onClick={() => document.getElementById('fileInput').click()} className="flex items-center gap-2 text-left bg-black text-white p-2 rounded hover:bg-gray-800 transition-colors duration-200"><Upload size={16}/> Import</button>
                         <input type="file" id="fileInput" className="hidden" onChange={handleImport} accept=".xlsx,.xls"/>
-                        <button onClick={handleExport} className="w-full flex items-center gap-2 text-left bg-green-600 text-white p-2 rounded hover:bg-green-700 transition-colors duration-200"><Download size={16}/> Export to Excel</button>
+                        <button onClick={handleExport} className="flex items-center gap-2 text-left bg-black text-white p-2 rounded hover:bg-gray-800 transition-colors duration-200"><Download size={16}/> Export</button>
                     </div>
                 </div>
-            </aside>
+                 <hr className="my-4 border-gray-200"/>
+                <div className="flex flex-wrap items-center gap-4">
+                     <div className="flex items-center gap-2">
+                        <button onClick={handleAddRegion} className="bg-black text-white p-2 rounded hover:bg-gray-800 transition-colors duration-200">Add Region</button>
+                        <button onClick={() => handleRemove({ regionIdx: selectedRegionIndex })} disabled={selectedRegionIndex === null} className="bg-gray-200 text-black p-2 rounded hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors duration-200">Delete Region</button>
+                    </div>
+                     <div className="flex items-center gap-2">
+                        <button onClick={handleAddLocation} disabled={selectedRegionIndex === null} className="bg-black text-white p-2 rounded hover:bg-gray-800 disabled:bg-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors duration-200">Add Location</button>
+                        <button onClick={handleAddDevice} disabled={!selectedPath || selectedPath.deviceIdx !== undefined} className="bg-black text-white p-2 rounded hover:bg-gray-800 disabled:bg-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors duration-200">Add Device</button>
+                    </div>
+                     <div className="flex items-center gap-2">
+                        <button onClick={handleEditSelected} disabled={!selectedPath} className="bg-gray-200 text-black p-2 rounded hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors duration-200">Edit Entry</button>
+                        <button onClick={() => handleRemove(selectedPath)} disabled={!selectedPath} className="bg-gray-200 text-black p-2 rounded hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors duration-200">Remove Entry</button>
+                    </div>
+                     <div className="flex-grow flex items-center gap-4 justify-end">
+                          <div className="flex">
+                              <input type="text" value={globalSearchQuery} onChange={e => setGlobalSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch(globalSearchQuery, 'global')} placeholder="Global Search..." className="w-48 p-2 border border-gray-300 bg-white rounded-l-md focus:ring-black focus:border-black" />
+                              <button onClick={() => handleSearch(globalSearchQuery, 'global')} className="bg-gray-800 text-white p-2 rounded-r-md hover:bg-black"><Search size={20}/></button>
+                          </div>
+                           <div className="flex">
+                              <select value={searchField} onChange={e => setSearchField(e.target.value)} className="p-2 border border-r-0 border-gray-300 rounded-l-md bg-gray-50 focus:ring-black focus:border-black">
+                                  <option value="ip">IP</option>
+                                  <option value="location">Location</option>
+                                  <option value="type">Name/Type</option>
+                              </select>
+                              <input type="text" value={specificSearchQuery} onChange={e => setSpecificSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch(specificSearchQuery, searchField)} placeholder="Search in Region..." className="w-48 p-2 border border-gray-300 bg-white focus:ring-black focus:border-black" />
+                              <button onClick={() => handleSearch(specificSearchQuery, searchField)} className="bg-gray-800 text-white p-2 rounded-r-md hover:bg-black"><Search size={20}/></button>
+                          </div>
+                    </div>
+                </div>
+            </header>
 
             <main className="flex-grow p-6 flex flex-col">
-                <div className="bg-white dark:bg-white/5 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 dark:border-white/10 flex-grow overflow-y-auto">
-                    {isLoading ? <div className="p-10 text-center text-gray-500 dark:text-gray-400">Loading...</div> : <DataTable region={selectedRegion} onSelect={setSelectedPath} selectedPath={selectedPath} />}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex-grow overflow-y-auto">
+                    {isLoading ? <div className="p-10 text-center text-gray-500">Loading...</div> : <DataTable region={selectedRegion} onSelect={setSelectedPath} selectedPath={selectedPath} />}
                 </div>
             </main>
         </div>

@@ -86,24 +86,32 @@ export const exportToExcel = async (req, res) => {
 
 export const search = async (req, res) => {
     try {
-        const { term, field } = req.query;
+        const { term, field, regionName } = req.query;
         if (!term) {
             return res.status(400).json({ message: "Search term query parameter is required." });
         }
 
         const searchRegex = { $regex: term.trim(), $options: 'i' };
-        let matchQuery = {};
+        
+        let pipeline = [];
 
-        if (field === 'region') {
-            matchQuery = { "name": searchRegex };
-        } else if (field === 'location') {
-            matchQuery = { "locations.name": searchRegex };
+        // --- FIX: If a regionName is provided, start by matching that region ---
+        if (regionName) {
+            pipeline.push({ $match: { name: regionName } });
+        }
+
+        pipeline.push({ $unwind: "$locations" });
+        pipeline.push({ $unwind: "$locations.devices" });
+
+        let searchMatch = {};
+        if (field === 'location') {
+            searchMatch = { "locations.name": searchRegex };
         } else if (field === 'ip') {
-            matchQuery = { "locations.devices.ip": searchRegex };
-        } else if (field === 'type') { // --- FIX: Added specific search for device type ---
-            matchQuery = { "locations.devices.type": searchRegex };
-        } else { // Default to global search
-            matchQuery = {
+            searchMatch = { "locations.devices.ip": searchRegex };
+        } else if (field === 'type') {
+            searchMatch = { "locations.devices.type": searchRegex };
+        } else { // Global search
+            searchMatch = {
                 $or: [
                     { "name": searchRegex },
                     { "locations.name": searchRegex },
@@ -114,21 +122,17 @@ export const search = async (req, res) => {
                 ]
             };
         }
-
-        const pipeline = [
-            { $match: matchQuery },
-            { $unwind: "$locations" },
-            { $unwind: "$locations.devices" },
-            { $match: matchQuery },
-            {
-                $project: {
-                    _id: 0,
-                    regionName: "$name",
-                    locationName: "$locations.name",
-                    device: "$locations.devices"
-                }
+        
+        pipeline.push({ $match: searchMatch });
+        
+        pipeline.push({
+            $project: {
+                _id: 0,
+                regionName: "$name",
+                locationName: "$locations.name",
+                device: "$locations.devices"
             }
-        ];
+        });
         
         const results = await Region.aggregate(pipeline);
 
