@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.9"
 
 services:
   backend:
@@ -22,3 +22,14 @@ services:
     depends_on:
       - backend
 
+  mongo:
+    image: mongo
+    container_name: netman_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:

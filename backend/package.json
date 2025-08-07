@@ -4,6 +4,7 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
+    "build": "vite build",
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
