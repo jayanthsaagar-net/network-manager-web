@@ -2,6 +2,27 @@ import Region from '../models/Region.js';
 import { parseExcelData as parseExcelDataUtil } from '../utils/excelParser.js';
 import xlsx from 'xlsx';
 
+// Helper function to parse the serials file
+const parseSerialsFile = (xls) => {
+    const serialsByRegion = {};
+    for (const sheetName of xls.SheetNames) {
+        const ws = xls.Sheets[sheetName];
+        const rows = xlsx.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        const regionName = sheetName.trim();
+        serialsByRegion[regionName] = new Set();
+        
+        rows.forEach(row => {
+            for (let i = 1; i < 15; i++) {
+                const cell = String(row[i] || '').trim();
+                if (cell.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
+                    serialsByRegion[regionName].add(cell);
+                }
+            }
+        });
+    }
+    return serialsByRegion;
+};
+
 export const getAllData = async (req, res) => {
     try {
         const data = await Region.find();
@@ -95,13 +116,9 @@ export const search = async (req, res) => {
         
         let pipeline = [];
 
-        // --- FIX: If a regionName is provided, start by matching that region ---
-        if (regionName) {
+        if (regionName && field !== 'global') {
             pipeline.push({ $match: { name: regionName } });
         }
-
-        pipeline.push({ $unwind: "$locations" });
-        pipeline.push({ $unwind: "$locations.devices" });
 
         let searchMatch = {};
         if (field === 'location') {
@@ -113,7 +130,7 @@ export const search = async (req, res) => {
         } else { // Global search
             searchMatch = {
                 $or: [
-                    { "name": searchRegex },
+                    { "name": searchRegex }, 
                     { "locations.name": searchRegex },
                     { "locations.devices.type": searchRegex },
                     { "locations.devices.ip": searchRegex },
@@ -123,16 +140,19 @@ export const search = async (req, res) => {
             };
         }
         
-        pipeline.push({ $match: searchMatch });
-        
-        pipeline.push({
-            $project: {
-                _id: 0,
-                regionName: "$name",
-                locationName: "$locations.name",
-                device: "$locations.devices"
+        pipeline.push(
+            { $unwind: "$locations" },
+            { $unwind: "$locations.devices" },
+            { $match: searchMatch },
+            {
+                $project: {
+                    _id: 0,
+                    regionName: "$name",
+                    locationName: "$locations.name",
+                    device: "$locations.devices"
+                }
             }
-        });
+        );
         
         const results = await Region.aggregate(pipeline);
 
@@ -140,5 +160,48 @@ export const search = async (req, res) => {
     } catch (error) {
         console.error("Search Error:", error);
         res.status(500).json({ message: "An error occurred during search", error: error.message });
+    }
+};
+
+export const checkAvailableSerials = async (req, res) => {
+    if (!req.file) {
+        return res.status(400).send('No serials file uploaded.');
+    }
+    try {
+        const xls = xlsx.read(req.file.buffer, { type: 'buffer' });
+        const allPossibleSerials = parseSerialsFile(xls);
+        const regions = await Region.find();
+        
+        const usedIpsByRegion = {};
+        regions.forEach(region => {
+            usedIpsByRegion[region.name] = new Set();
+            region.locations.forEach(location => {
+                location.devices.forEach(device => {
+                    if (device.ip) {
+                        const ipOnly = device.ip.split(' ')[0];
+                        usedIpsByRegion[region.name].add(ipOnly);
+                    }
+                });
+            });
+        });
+
+        const availabilityResults = {};
+        for (const regionName in allPossibleSerials) {
+            if (allPossibleSerials.hasOwnProperty(regionName)) {
+                const allSerials = allPossibleSerials[regionName];
+                const usedSerials = usedIpsByRegion[regionName] || new Set();
+                
+                availabilityResults[regionName] = Array.from(allSerials).map(ip => ({
+                    ip,
+                    isUsed: usedSerials.has(ip)
+                }));
+            }
+        }
+
+        res.status(200).json(availabilityResults);
+
+    } catch (error) {
+        console.error("Check Serials Error:", error);
+        res.status(500).json({ message: "Error checking serials", error: error.message });
     }
 };
