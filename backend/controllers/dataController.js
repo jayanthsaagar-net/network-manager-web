@@ -172,14 +172,13 @@ export const checkAvailableSerials = async (req, res) => {
         const allPossibleSerials = parseSerialsFile(xls);
         const regions = await Region.find();
         
-        const usedIpsByRegion = {};
+        const usedIps = new Set();
         regions.forEach(region => {
-            usedIpsByRegion[region.name] = new Set();
             region.locations.forEach(location => {
                 location.devices.forEach(device => {
                     if (device.ip) {
-                        const ipOnly = device.ip.split(' ')[0];
-                        usedIpsByRegion[region.name].add(ipOnly);
+                        const ipOnly = device.ip.split(' ')[0].split('/')[0];
+                        usedIps.add(ipOnly);
                     }
                 });
             });
@@ -189,12 +188,13 @@ export const checkAvailableSerials = async (req, res) => {
         for (const regionName in allPossibleSerials) {
             if (allPossibleSerials.hasOwnProperty(regionName)) {
                 const allSerials = allPossibleSerials[regionName];
-                const usedSerials = usedIpsByRegion[regionName] || new Set();
                 
-                availabilityResults[regionName] = Array.from(allSerials).map(ip => ({
-                    ip,
-                    isUsed: usedSerials.has(ip)
-                }));
+                availabilityResults[regionName] = Array.from(allSerials)
+                    .map(ip => ({
+                        ip,
+                        status: usedIps.has(ip) ? "Used" : "Unused"
+                    }))
+                    .filter(serial => serial.status === "Unused"); // Only return unused IPs
             }
         }
 

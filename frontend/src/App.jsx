@@ -266,24 +266,39 @@ const SearchResultsModal = ({ isOpen, onClose, results, isLoading, onResultClick
     );
 };
 
-// --- FIX: New component for the Available Serials view ---
 const AvailableSerialsView = ({ serialData }) => {
+    const [searchQuery, setSearchQuery] = useState('');
+
     if (!serialData || Object.keys(serialData).length === 0) {
-        return <div className="p-10 text-center text-gray-500">Upload a serials file using the "Check Serials" button to see available IPs.</div>;
+        return <div className="p-10 text-center text-gray-500">Upload a serials file to see the IP usage status report.</div>;
     }
+
+    const filteredData = Object.keys(serialData).reduce((acc, regionName) => {
+        const filteredSerials = serialData[regionName].filter(({ ip }) => ip.includes(searchQuery));
+        if (filteredSerials.length > 0) {
+            acc[regionName] = filteredSerials;
+        }
+        return acc;
+    }, {});
 
     return (
         <div className="p-6 overflow-y-auto h-full">
-            <h2 className="text-2xl font-bold mb-4">Available Serial IPs</h2>
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold">Available Serial IPs</h2>
+                <div className="flex">
+                    <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search available IPs..." className="w-64 p-2 border border-gray-300 bg-white rounded-l-md focus:ring-black focus:border-black" />
+                    <button className="bg-gray-800 text-white p-2 rounded-r-md hover:bg-black"><Search size={20}/></button>
+                </div>
+            </div>
             <div className="space-y-6">
-                {Object.keys(serialData).map(regionName => (
+                {Object.keys(filteredData).map(regionName => (
                     <div key={regionName}>
                         <h3 className="text-lg font-semibold border-b border-gray-200 pb-2 mb-2">{regionName}</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-2">
-                            {serialData[regionName].map(({ ip, isUsed }) => (
-                                <span key={ip} className={`font-mono text-sm ${isUsed ? 'text-blue-600' : 'text-black'}`}>
-                                    {ip}
-                                </span>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-x-8 gap-y-2">
+                            {filteredData[regionName].map(({ ip, status }) => (
+                                <div key={ip} className="flex items-center">
+                                    <span className={`font-mono text-sm mr-2 text-black`}>{ip}</span>
+                                </div>
                             ))}
                         </div>
                     </div>
@@ -309,7 +324,6 @@ function App() {
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [searchField, setSearchField] = useState('ip');
-    // --- FIX: State for new tabs ---
     const [activeTab, setActiveTab] = useState('dashboard');
     const [availableSerials, setAvailableSerials] = useState(null);
 
@@ -372,6 +386,7 @@ function App() {
     const handleCheckSerials = async (event) => {
         const file = event.target.files[0];
         if (!file) return;
+        
         const formData = new FormData();
         formData.append('file', file);
         setIsLoading(true);
@@ -379,7 +394,7 @@ function App() {
             const response = await api_frontend.checkSerials(formData);
             setAvailableSerials(response.data);
             setActiveTab('serials');
-            showToast('Available serials checked and updated!');
+            showToast('Available serials checked!');
         } catch (error) {
             showToast('Failed to check serials.', 'error');
         } finally {
@@ -523,7 +538,7 @@ function App() {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Server className="text-black" size={28}/>
-                        <h1 className="text-xl font-bold text-black">Network Manager</h1>
+                        <h1 className="text-xl font-bold text-black">CRIS Internet Protocol List</h1>
                     </div>
                     <div className="flex items-center gap-4">
                         <select value={selectedRegionIndex ?? ''} onChange={e => { setSelectedRegionIndex(Number(e.target.value)); setSelectedPath(null); }} className="p-2 border border-gray-300 bg-white text-black rounded shadow-sm focus:ring-black focus:border-black">
@@ -570,8 +585,22 @@ function App() {
             </header>
 
             <main className="flex-grow p-6 flex flex-col">
+                <div className="border-b border-gray-200 mb-4">
+                    <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                        <button onClick={() => setActiveTab('dashboard')} className={`${activeTab === 'dashboard' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
+                            Dashboard
+                        </button>
+                        <button onClick={() => setActiveTab('serials')} className={`${activeTab === 'serials' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>
+                            Available Serials
+                        </button>
+                    </nav>
+                </div>
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex-grow overflow-y-auto">
-                    {isLoading ? <div className="p-10 text-center text-gray-500">Loading...</div> : <DataTable region={selectedRegion} onSelect={setSelectedPath} selectedPath={selectedPath} />}
+                    {isLoading ? <div className="p-10 text-center text-gray-500">Loading...</div> : (
+                        activeTab === 'dashboard' ?
+                        <DataTable region={selectedRegion} onSelect={setSelectedPath} selectedPath={selectedPath} /> :
+                        <AvailableSerialsView serialData={availableSerials} />
+                    )}
                 </div>
             </main>
         </div>
