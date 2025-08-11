@@ -11,12 +11,32 @@ const parseSerialsFile = (xls) => {
         const regionName = sheetName.trim();
         serialsByRegion[regionName] = new Set();
         
+        let serialIpColumn = -1;
+        // Find the "Serial ip" column
+        if (rows.length > 0) {
+            const headerRow = rows.find(r => r.some(cell => String(cell).toLowerCase().includes('serial ip')));
+            if (headerRow) {
+                serialIpColumn = headerRow.findIndex(cell => String(cell).toLowerCase().includes('serial ip'));
+            }
+        }
+        
         rows.forEach(row => {
-            for (let i = 1; i < 15; i++) {
-                const cell = String(row[i] || '').trim();
-                if (cell.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
-                    serialsByRegion[regionName].add(cell);
+            let cell = '';
+            if (serialIpColumn !== -1) {
+                cell = String(row[serialIpColumn] || '').trim();
+            } else {
+                // Fallback for less structured sheets
+                for (let i = 1; i < 15; i++) {
+                    const tempCell = String(row[i] || '').trim();
+                    if (tempCell.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
+                        cell = tempCell;
+                        break;
+                    }
                 }
+            }
+
+            if (cell.match(/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/)) {
+                serialsByRegion[regionName].add(cell);
             }
         });
     }
@@ -203,5 +223,67 @@ export const checkAvailableSerials = async (req, res) => {
     } catch (error) {
         console.error("Check Serials Error:", error);
         res.status(500).json({ message: "Error checking serials", error: error.message });
+    }
+};
+
+export const getSuggestions = async (req, res) => {
+    try {
+        const { term, field, regionName } = req.query;
+        if (!term) {
+            return res.json([]);
+        }
+
+        const searchRegex = { $regex: `^${term.trim()}`, $options: 'i' };
+        let pipeline = [];
+
+        if (regionName && field !== 'global') {
+            pipeline.push({ $match: { name: regionName } });
+        }
+
+        let groupField = '';
+        if (field === 'location') {
+            pipeline.push({ $unwind: "$locations" });
+            pipeline.push({ $match: { "locations.name": searchRegex } });
+            groupField = "$locations.name";
+        } else if (field === 'ip') {
+            pipeline.push({ $unwind: "$locations" }, { $unwind: "$locations.devices" });
+            pipeline.push({ $match: { "locations.devices.ip": searchRegex } });
+            groupField = "$locations.devices.ip";
+        } else if (field === 'type') {
+            pipeline.push({ $unwind: "$locations" }, { $unwind: "$locations.devices" });
+            pipeline.push({ $match: { "locations.devices.type": searchRegex } });
+            groupField = "$locations.devices.type";
+        } else { // Global
+             pipeline.push(
+                { $unwind: "$locations" },
+                { $unwind: "$locations.devices" },
+                {
+                    $match: {
+                        $or: [
+                            { "name": searchRegex },
+                            { "locations.name": searchRegex },
+                            { "locations.devices.type": searchRegex },
+                            { "locations.devices.ip": searchRegex },
+                        ]
+                    }
+                }
+            );
+            const regions = await Region.distinct('name', { name: searchRegex }).limit(5);
+            const locations = await Region.distinct('locations.name', { 'locations.name': searchRegex }).limit(5);
+            const ips = await Region.distinct('locations.devices.ip', { 'locations.devices.ip': searchRegex }).limit(5);
+            const types = await Region.distinct('locations.devices.type', { 'locations.devices.type': searchRegex }).limit(5);
+            const suggestions = [...new Set([...regions, ...locations, ...ips, ...types])];
+            return res.json(suggestions.slice(0, 10));
+        }
+
+        pipeline.push({ $group: { _id: groupField } });
+        pipeline.push({ $limit: 10 });
+
+        const results = await Region.aggregate(pipeline);
+        res.json(results.map(r => r._id));
+
+    } catch (error) {
+        console.error("Suggestion Error:", error);
+        res.status(500).json({ message: "An error occurred while fetching suggestions" });
     }
 };

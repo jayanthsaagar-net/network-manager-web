@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { saveAs } from 'file-saver';
-import { Upload, Download, Edit, Trash2, Plus, ChevronRight, X, AlertCircle, CheckCircle, Save, Undo, Search, Server, FileText, Globe, Sun, Moon, ListChecks } from 'lucide-react';
+import { Upload, Download, Edit, Trash2, Plus, ChevronRight, X, AlertCircle, CheckCircle, Save, Undo, Search, Server, FileText, Globe, Sun, Moon, ListChecks, Loader2 } from 'lucide-react';
 
 const API_URL_FRONTEND = 'http://localhost:5001/api/data';
 
@@ -18,6 +18,13 @@ const api_frontend = {
         return axios.get(url);
     },
     checkSerials: (formData) => axios.post(`${API_URL_FRONTEND}/check-serials`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    getSuggestions: (term, field, regionName = null) => {
+        let url = `${API_URL_FRONTEND}/suggestions?term=${term}&field=${field}`;
+        if (regionName) {
+            url += `&regionName=${encodeURIComponent(regionName)}`;
+        }
+        return axios.get(url);
+    }
 };
 
 const getItem = (data, path) => {
@@ -266,7 +273,7 @@ const SearchResultsModal = ({ isOpen, onClose, results, isLoading, onResultClick
     );
 };
 
-const AvailableSerialsView = ({ serialData }) => {
+const AvailableSerialsView = ({ serialData, onSearch }) => {
     const [searchQuery, setSearchQuery] = useState('');
 
     if (!serialData || Object.keys(serialData).length === 0) {
