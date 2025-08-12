@@ -1,2 +1,68 @@
-node_modules
+# -------------------------
+# Node.js & JavaScript
+# -------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+.pnpm-debug.log
+
+# -------------------------
+# Build outputs
+# -------------------------
+dist/
+build/
+.cache/
+.next/
+out/
+temp/
+tmp/
 .DS_Store
+
+# -------------------------
+# Environment files
+# -------------------------
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# -------------------------
+# Logs
+# -------------------------
+logs
+*.log
+*.log.*
+log/
+logs/
+debug.log
+error.log
+
+# -------------------------
+# IDE / Editor settings
+# -------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# -------------------------
+# Docker
+# -------------------------
+# Ignore Docker volumes/data
+data/
+volumes/
+mongo-data/
+docker-compose.override.yml
+
+# -------------------------
+# OS-generated files
+# -------------------------
+Thumbs.db
+.DS_Store
+ehthumbs.db
+Icon?
